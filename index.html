@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Attendance Tracker</title>
+  <style>
+    :root{
+      --bg:#0b1022;
+      --stroke: rgba(255,255,255,.12);
+      --text:#eaf0ff;
+      --muted:#b7c2e6;
+      --good:#34d399;
+      --bad:#fb7185;
+      --warn:#fbbf24;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background:#0b1022;
+      color:var(--text);
+      padding:20px;
+    }
+    .container{max-width:1000px;margin:auto}
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
+    h1{margin:0;font-size:22px}
+    .controls{display:flex;gap:8px}
+    button,select{
+      padding:8px 10px;
+      border-radius:6px;
+      border:1px solid var(--stroke);
+      background:#11162a;
+      color:var(--text);
+    }
+    .card{
+      border:1px solid var(--stroke);
+      border-radius:10px;
+      padding:14px;
+    }
+    .dow,.days{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:6px;
+    }
+    .dow div{text-align:center;color:var(--muted);font-size:13px}
+    .day{
+      border:1px solid var(--stroke);
+      border-radius:8px;
+      min-height:70px;
+      padding:6px;
+      cursor:pointer;
+      position:relative;
+    }
+    .day.off{opacity:.3;cursor:default}
+    .num{font-weight:bold;font-size:13px}
+    .tag{
+      position:absolute;
+      bottom:6px;
+      left:6px;
+      font-size:12px;
+      padding:2px 6px;
+      border-radius:999px;
+      color:#000;
+    }
+    .P{background:var(--good)}
+    .A{background:var(--bad)}
+    .L{background:var(--warn)}
+    .summary{
+      margin-top:14px;
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .summary span{
+      border:1px solid var(--stroke);
+      padding:8px 12px;
+      border-radius:999px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>Attendance Tracker</h1>
+  <div class="controls">
+    <button id="prev">◀</button>
+    <select id="month"></select>
+    <select id="year"></select>
+    <button id="next">▶</button>
+  </div>
+</header>
+
+<div class="card">
+  <div class="dow">
+    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+  </div>
+  <div class="days" id="days"></div>
+</div>
+
+<div class="summary">
+  <span>Present: <b id="p">0</b></span>
+  <span>Absent: <b id="a">0</b></span>
+  <span>Leave: <b id="l">0</b></span>
+  <span>%: <b id="per">0%</b></span>
+</div>
+</div>
+
+<script>
+const daysEl=document.getElementById("days");
+const mSel=document.getElementById("month");
+const ySel=document.getElementById("year");
+const pEl=document.getElementById("p");
+const aEl=document.getElementById("a");
+const lEl=document.getElementById("l");
+const perEl=document.getElementById("per");
+
+const keyStore="attendance_clean";
+let data=JSON.parse(localStorage.getItem(keyStore)||"{}");
+
+const today=new Date();
+let y=today.getFullYear();
+let m=today.getMonth();
+const months=["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+months.forEach((mm,i)=>mSel.innerHTML+=`<option value="${i}">${mm}</option>`);
+for(let i=y-5;i<=y+5;i++)ySel.innerHTML+=`<option>${i}</option>`;
+mSel.value=m;ySel.value=y;
+
+document.getElementById("prev").onclick=()=>{m--;if(m<0){m=11;y--}sync()};
+document.getElementById("next").onclick=()=>{m++;if(m>11){m=0;y++}sync()};
+mSel.onchange=()=>{m=+mSel.value;render()};
+ySel.onchange=()=>{y=+ySel.value;render()};
+
+function sync(){mSel.value=m;ySel.value=y;render()}
+
+function render(){
+  daysEl.innerHTML="";
+  const key=`${y}-${m+1}`;
+  data[key]=data[key]||{};
+  const first=new Date(y,m,1).getDay();
+  const total=new Date(y,m+1,0).getDate();
+  for(let i=0;i<first;i++)daysEl.innerHTML+=`<div class="day off"></div>`;
+  let P=0,A=0,L=0;
+  for(let d=1;d<=total;d++){
+    const st=data[key][d]||"";
+    if(st==="P")P++; if(st==="A")A++; if(st==="L")L++;
+    const div=document.createElement("div");
+    div.className="day";
+    div.innerHTML=`<div class="num">${d}</div>${st?`<div class="tag ${st}">${st}</div>`:""}`;
+    div.onclick=()=>toggle(key,d);
+    daysEl.appendChild(div);
+  }
+  pEl.textContent=P;
+  aEl.textContent=A;
+  lEl.textContent=L;
+  perEl.textContent= total?Math.round((P/total)*100)+"%":"0%";
+}
+
+function toggle(key,d){
+  const cur=data[key][d]||"";
+  data[key][d]=cur===""?"P":cur==="P"?"A":cur==="A"?"L":"";
+  if(data[key][d]==="")delete data[key][d];
+  localStorage.setItem(keyStore,JSON.stringify(data));
+  render();
+}
+render();
+</script>
+</body>
+</html>
